@@ -4,7 +4,6 @@ const tokenServices = require('../services/token');
 const mailService = require('../services/EmailRecover');
 const { Op } = require('sequelize');
 
-
 exports.create = async (req, res, next) => {
     try {
         const user = await db.user.findOne({ where: { email: req.body.email } });
@@ -113,5 +112,40 @@ exports.login = async (req, res, next) => {
             error: '¡Error en el servidor!',
             message: error.message || 'Error interno en el servidor.'
         });
+    }
+};
+
+
+exports.list = async (req, res, next) => {
+    try {
+        // Obtén los parámetros de paginación de la consulta
+        const page = parseInt(req.query.page) || 1; // Página actual (por defecto es la página 1)
+        const limit = parseInt(req.query.limit) || 10; // Número de elementos por página (por defecto es 10)
+        const search = req.query.search || ''; // Término de búsqueda
+
+        // Calcula el offset basado en la página actual
+        const offset = (page - 1) * limit;
+
+        // Realiza la consulta con paginación y búsqueda
+        const userss = await db.user.findAndCountAll({
+            limit: limit,
+            offset: offset,
+            where: {
+                [Op.or]: [
+                    { first_name: { [Op.like]: `%${search}%` } },
+                    { last_name: { [Op.like]: `%${search}%` } },
+                    { email: { [Op.like]: `%${search}%` } }
+                ]
+            }
+        });
+
+        // Envia la respuesta con los datos paginados
+        res.status(200).json({
+            rows: userss.rows,
+            total: userss.count
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: '¡Error en el servidor!' });
     }
 };
